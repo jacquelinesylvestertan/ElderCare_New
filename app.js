@@ -1,66 +1,52 @@
 
-// ==========================================
-// ELDERCARE WEB APP
-// Firebase Realtime Database
-// ==========================================
-
-import {
-    initializeApp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+// ================================
+// Firebase
+// ================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
     getDatabase,
     ref,
+    onValue,
     set,
     push,
     remove,
-    onValue
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+    get
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 
-// ==========================================
-// FIREBASE CONFIGURATION
-// ==========================================
-
+// ================================
+// Firebase Configuration
+// ================================
 const firebaseConfig = {
-
-    apiKey: "AIzaSyApIoRhGU714Fv4GLC4remucT-StXMXWjE",
-
-    authDomain:
-        "eldercare-de234.firebaseapp.com",
-
-    databaseURL:
-        "https://eldercare-de234-default-rtdb.asia-southeast1.firebasedatabase.app",
-
-    projectId:
-        "eldercare-de234",
-
-    storageBucket:
-        "eldercare-de234.firebasestorage.app",
-
-    messagingSenderId:
-        "162372032696",
-
-    appId:
-        "1:162372032696:web:6540a4ef34626542d37c4d",
-
-    measurementId:
-        "G-MSDHSNF15W"
+    apiKey: "AIzaSyApIoRHGu714Fv4GLC4remucT-StXMXWjE",
+    authDomain: "eldercare-de234.firebaseapp.com",
+    databaseURL: "https://eldercare-de234-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "eldercare-de234",
+    storageBucket: "eldercare-de234.firebasestorage.app",
+    messagingSenderId: "162372032696",
+    appId: "1:162372032696:web:6540a4ef34626542d37c4d",
+    measurementId: "G-MSDHSNF15W"
 };
 
 
-// ==========================================
-// INITIALIZE FIREBASE
-// ==========================================
-
+// ================================
+// Initialize Firebase
+// ================================
 const app = initializeApp(firebaseConfig);
-
 const db = getDatabase(app);
 
 
-// ==========================================
-// HTML ELEMENTS
-// ==========================================
+// ================================
+// Firebase References
+// ================================
+const currentRef = ref(db, "ElderCare/current");
+const historyRef = ref(db, "ElderCare/history");
+
+
+// ================================
+// DOM Elements
+// ================================
 
 // Connection
 const connectionDot =
@@ -71,37 +57,33 @@ const connectionText =
 
 
 // Current Health
-const heartRateEl =
+const heartRate =
     document.getElementById("heartRate");
 
-const spo2El =
+const spo2 =
     document.getElementById("spo2");
 
-
-// Fall
 const fallCard =
     document.getElementById("fallCard");
 
-const fallStatusEl =
+const fallStatus =
     document.getElementById("fallStatus");
 
-
-// Updated
-const lastUpdatedEl =
+const lastUpdated =
     document.getElementById("lastUpdated");
 
 
 // Device Status
-const wifiStatusEl =
+const wifiStatus =
     document.getElementById("wifiStatus");
 
-const mpuStatusEl =
+const mpuStatus =
     document.getElementById("mpuStatus");
 
-const max30102StatusEl =
+const max30102Status =
     document.getElementById("max30102Status");
 
-const fingerStatusEl =
+const fingerStatus =
     document.getElementById("fingerStatus");
 
 
@@ -114,7 +96,7 @@ const refreshBtn =
 
 
 // Caretaker
-const caretakerPhoneInput =
+const caretakerPhone =
     document.getElementById("caretakerPhone");
 
 const saveCaretakerBtn =
@@ -125,10 +107,10 @@ const caretakerMessage =
 
 
 // Medication
-const medicineNameInput =
+const medicineName =
     document.getElementById("medicineName");
 
-const medicineTimeInput =
+const medicineTime =
     document.getElementById("medicineTime");
 
 const addReminderBtn =
@@ -141,283 +123,480 @@ const reminderList =
     document.getElementById("reminderList");
 
 
-// ==========================================
-// FIREBASE CONNECTION STATUS
-// ==========================================
+// ================================
+// Helper
+// ================================
+function safeValue(value, defaultValue = "--") {
 
-const connectionRef =
+    if (
+        value === undefined ||
+        value === null ||
+        value === ""
+    ) {
+        return defaultValue;
+    }
+
+    return value;
+}
+
+
+// ==================================================
+// FIREBASE CONNECTION STATUS
+// ==================================================
+
+// IMPORTANT:
+// Use .info/connected to check the REAL Firebase
+// Realtime Database connection.
+
+const connectedRef =
     ref(db, ".info/connected");
 
 
-onValue(connectionRef, (snapshot) => {
+onValue(
+    connectedRef,
+    (snapshot) => {
 
-    const connected = snapshot.val() === true;
-
-
-    if (connected) {
-
-        connectionDot.classList.remove("offline");
-        connectionDot.classList.add("connected");
-
-        connectionText.textContent =
-            "Connected";
-
-    } else {
-
-        connectionDot.classList.remove("connected");
-        connectionDot.classList.add("offline");
-
-        connectionText.textContent =
-            "Disconnected";
-    }
-});
+        const connected =
+            snapshot.val();
 
 
-// ==========================================
-// CURRENT HEALTH DATA
-// ==========================================
+        if (connected === true) {
 
-const currentRef =
-    ref(db, "ElderCare/current");
+            if (connectionDot) {
 
+                connectionDot.classList.remove(
+                    "offline"
+                );
 
-onValue(currentRef, (snapshot) => {
-
-    const data = snapshot.val();
-
-
-    if (!data) {
-
-        heartRateEl.textContent = "--";
-        spo2El.textContent = "--";
-        fallStatusEl.textContent = "--";
-        lastUpdatedEl.textContent = "--";
-
-        wifiStatusEl.textContent = "--";
-        mpuStatusEl.textContent = "--";
-        max30102StatusEl.textContent = "--";
-        fingerStatusEl.textContent = "--";
-
-        return;
-    }
+                connectionDot.classList.add(
+                    "connected"
+                );
+            }
 
 
-    // ======================================
-    // HEART RATE
-    // ======================================
+            if (connectionText) {
 
-    heartRateEl.textContent =
-        data.heartRate ?? "--";
-
-
-    // ======================================
-    // SPO2
-    // ======================================
-
-    spo2El.textContent =
-        data.spo2 ?? "--";
+                connectionText.textContent =
+                    "Connected";
+            }
 
 
-    // ======================================
-    // FALL STATUS
-    // ======================================
+            console.log(
+                "Firebase: Connected"
+            );
 
-    const fallStatus =
-        data.fallStatus ?? "Normal";
+        } else {
+
+            if (connectionDot) {
+
+                connectionDot.classList.remove(
+                    "connected"
+                );
+
+                connectionDot.classList.add(
+                    "offline"
+                );
+            }
 
 
-    fallStatusEl.textContent =
-        fallStatus;
+            if (connectionText) {
+
+                connectionText.textContent =
+                    "Disconnected";
+            }
 
 
-    if (
-        fallStatus === "FALL DETECTED"
-    ) {
+            console.log(
+                "Firebase: Disconnected"
+            );
+        }
+    },
 
-        fallCard.classList.remove(
-            "fall-normal"
+    (error) => {
+
+        console.error(
+            "Firebase connection error:",
+            error
         );
 
-        fallCard.classList.add(
-            "fall-danger"
-        );
 
-        fallStatusEl.classList.remove(
-            "normal"
-        );
+        if (connectionDot) {
 
-        fallStatusEl.classList.add(
-            "danger"
-        );
+            connectionDot.classList.remove(
+                "connected"
+            );
 
-    } else {
-
-        fallCard.classList.remove(
-            "fall-danger"
-        );
-
-        fallCard.classList.add(
-            "fall-normal"
-        );
-
-        fallStatusEl.classList.remove(
-            "danger"
-        );
-
-        fallStatusEl.classList.add(
-            "normal"
-        );
-    }
-
-
-    // ======================================
-    // LAST UPDATED
-    // ======================================
-
-    lastUpdatedEl.textContent =
-        data.timestamp ?? "--";
-
-
-    // ======================================
-    // WIFI STATUS
-    // ======================================
-
-    wifiStatusEl.textContent =
-        data.wifiStatus ?? "--";
-
-
-    // ======================================
-    // MPU6050
-    // ======================================
-
-    mpuStatusEl.textContent =
-        data.mpuStatus ?? "--";
-
-
-    // ======================================
-    // MAX30102
-    // ======================================
-
-    max30102StatusEl.textContent =
-        data.max30102Status ?? "--";
-
-
-    // ======================================
-    // FINGER
-    // ======================================
-
-    fingerStatusEl.textContent =
-        data.fingerStatus ?? "--";
-
-});
-
-
-// ==========================================
-// LOAD CARETAKER NUMBER
-// ==========================================
-
-const caretakerRef =
-    ref(db, "ElderCare/settings/caretakerPhone");
-
-
-onValue(caretakerRef, (snapshot) => {
-
-    const phone =
-        snapshot.val();
-
-
-    if (phone) {
-
-        caretakerPhoneInput.value =
-            phone;
-    }
-});
-
-
-// ==========================================
-// SAVE CARETAKER PHONE
-// ==========================================
-
-saveCaretakerBtn.addEventListener(
-    "click",
-    async () => {
-
-        let phone =
-            caretakerPhoneInput.value.trim();
-
-
-        // Empty
-        if (!phone) {
-
-            caretakerMessage.textContent =
-                "Please enter a WhatsApp number.";
-
-            caretakerMessage.style.color =
-                "red";
-
-            return;
+            connectionDot.classList.add(
+                "offline"
+            );
         }
 
 
-        // Remove + spaces - brackets
-        phone =
-            phone.replace(
-                /[^0-9]/g,
-                ""
-            );
+        if (connectionText) {
 
-
-        // Validate
-        if (
-            !/^[0-9]{8,15}$/.test(phone)
-        ) {
-
-            caretakerMessage.textContent =
-                "Please enter a valid phone number.";
-
-            caretakerMessage.style.color =
-                "red";
-
-            return;
-        }
-
-
-        try {
-
-            await set(
-                caretakerRef,
-                phone
-            );
-
-
-            caretakerMessage.textContent =
-                "Caretaker number saved successfully.";
-
-            caretakerMessage.style.color =
-                "green";
-
-
-        } catch (error) {
-
-            console.error(
-                "Save caretaker error:",
-                error
-            );
-
-
-            caretakerMessage.textContent =
-                "Failed to save caretaker number.";
-
-            caretakerMessage.style.color =
-                "red";
+            connectionText.textContent =
+                "Disconnected";
         }
     }
 );
 
 
-// ==========================================
-// LOAD MEDICATION REMINDERS
-// ==========================================
+// ==================================================
+// CURRENT HEALTH DATA
+// ==================================================
+
+onValue(
+    currentRef,
+    (snapshot) => {
+
+        const data =
+            snapshot.val();
+
+
+        if (!data) {
+
+            console.log(
+                "No current data."
+            );
+
+            return;
+        }
+
+
+        console.log(
+            "Current Firebase data:",
+            data
+        );
+
+
+        // ------------------------------------------
+        // Heart Rate
+        // ------------------------------------------
+
+        if (heartRate) {
+
+            const hr =
+                safeValue(
+                    data.heartRate
+                );
+
+
+            if (hr === "--") {
+
+                heartRate.textContent =
+                    "--";
+
+            } else {
+
+                heartRate.textContent =
+                    hr + " BPM";
+            }
+        }
+
+
+        // ------------------------------------------
+        // SpO2
+        // ------------------------------------------
+
+        if (spo2) {
+
+            const oxygen =
+                safeValue(
+                    data.spo2
+                );
+
+
+            if (oxygen === "--") {
+
+                spo2.textContent =
+                    "--";
+
+            } else {
+
+                spo2.textContent =
+                    oxygen + " %";
+            }
+        }
+
+
+        // ------------------------------------------
+        // Fall Status
+        // ------------------------------------------
+
+        if (fallStatus) {
+
+            const status =
+                safeValue(
+                    data.fallStatus,
+                    "NORMAL"
+                );
+
+
+            fallStatus.textContent =
+                status;
+
+
+            if (
+                status === "FALL DETECTED"
+            ) {
+
+                if (fallCard) {
+
+                    fallCard.classList.add(
+                        "danger"
+                    );
+                }
+
+            } else {
+
+                if (fallCard) {
+
+                    fallCard.classList.remove(
+                        "danger"
+                    );
+                }
+            }
+        }
+
+
+        // ------------------------------------------
+        // WiFi Status
+        // ------------------------------------------
+
+        if (wifiStatus) {
+
+            wifiStatus.textContent =
+                safeValue(
+                    data.wifiStatus,
+                    "Unknown"
+                );
+        }
+
+
+        // ------------------------------------------
+        // MPU6050 Status
+        // ------------------------------------------
+
+        if (mpuStatus) {
+
+            mpuStatus.textContent =
+                safeValue(
+                    data.mpuStatus,
+                    "Unknown"
+                );
+        }
+
+
+        // ------------------------------------------
+        // MAX30102 Status
+        // ------------------------------------------
+
+        if (max30102Status) {
+
+            max30102Status.textContent =
+                safeValue(
+                    data.max30102Status,
+                    "Unknown"
+                );
+        }
+
+
+        // ------------------------------------------
+        // Finger Status
+        // ------------------------------------------
+
+        if (fingerStatus) {
+
+            fingerStatus.textContent =
+                safeValue(
+                    data.fingerStatus,
+                    "--"
+                );
+        }
+
+
+        // ------------------------------------------
+        // Last Updated
+        // ------------------------------------------
+
+        if (lastUpdated) {
+
+            if (data.timestamp) {
+
+                lastUpdated.textContent =
+                    data.timestamp;
+
+            } else {
+
+                lastUpdated.textContent =
+                    new Date().toLocaleString();
+            }
+        }
+    },
+
+    (error) => {
+
+        console.error(
+            "Error reading current data:",
+            error
+        );
+    }
+);
+
+
+// ==================================================
+// CARETAKER PHONE
+// ==================================================
+
+const caretakerRef =
+    ref(
+        db,
+        "ElderCare/settings/caretakerPhone"
+    );
+
+
+// ------------------------------------------
+// Load caretaker phone
+// ------------------------------------------
+
+onValue(
+    caretakerRef,
+    (snapshot) => {
+
+        const phone =
+            snapshot.val();
+
+
+        if (
+            phone !== null &&
+            phone !== undefined
+        ) {
+
+            if (caretakerPhone) {
+
+                caretakerPhone.value =
+                    phone;
+            }
+        }
+    },
+
+    (error) => {
+
+        console.error(
+            "Error loading caretaker phone:",
+            error
+        );
+    }
+);
+
+
+// ------------------------------------------
+// Save caretaker phone
+// ------------------------------------------
+
+if (saveCaretakerBtn) {
+
+    saveCaretakerBtn.addEventListener(
+        "click",
+        async () => {
+
+            let phone =
+                caretakerPhone.value.trim();
+
+
+            // Check empty
+            if (!phone) {
+
+                if (caretakerMessage) {
+
+                    caretakerMessage.textContent =
+                        "Please enter a WhatsApp number.";
+
+                    caretakerMessage.style.color =
+                        "red";
+                }
+
+                return;
+            }
+
+
+            // Remove spaces, +, -, brackets
+            phone =
+                phone.replace(
+                    /[^0-9]/g,
+                    ""
+                );
+
+
+            // Check phone length
+            if (
+                !/^[0-9]{8,15}$/.test(
+                    phone
+                )
+            ) {
+
+                if (caretakerMessage) {
+
+                    caretakerMessage.textContent =
+                        "Please enter a valid phone number.";
+
+                    caretakerMessage.style.color =
+                        "red";
+                }
+
+                return;
+            }
+
+
+            try {
+
+                await set(
+                    caretakerRef,
+                    phone
+                );
+
+
+                if (caretakerMessage) {
+
+                    caretakerMessage.textContent =
+                        "Caretaker number saved successfully.";
+
+                    caretakerMessage.style.color =
+                        "green";
+                }
+
+
+                console.log(
+                    "Caretaker number saved:",
+                    phone
+                );
+
+
+            } catch (error) {
+
+                console.error(
+                    "Save caretaker error:",
+                    error
+                );
+
+
+                if (caretakerMessage) {
+
+                    caretakerMessage.textContent =
+                        "Failed to save caretaker number.";
+
+                    caretakerMessage.style.color =
+                        "red";
+                }
+            }
+        }
+    );
+}
+
+
+// ==================================================
+// MEDICATION REMINDERS
+// ==================================================
 
 const remindersRef =
     ref(
@@ -426,465 +605,615 @@ const remindersRef =
     );
 
 
-onValue(remindersRef, (snapshot) => {
+// ------------------------------------------
+// Load medication reminders
+// ------------------------------------------
 
-    const data =
-        snapshot.val();
+onValue(
+    remindersRef,
+    (snapshot) => {
 
-
-    renderReminders(
-        data
-    );
-});
-
-
-// ==========================================
-// RENDER MEDICATION REMINDERS
-// ==========================================
-
-function renderReminders(data)
-{
-    reminderList.innerHTML = "";
-
-
-    if (!data) {
-
-        reminderList.innerHTML =
-            '<p class="empty">No medication reminders yet.</p>';
-
-        return;
-    }
-
-
-    const reminders =
-        Object.entries(data);
-
-
-    if (reminders.length === 0) {
-
-        reminderList.innerHTML =
-            '<p class="empty">No medication reminders yet.</p>';
-
-        return;
-    }
-
-
-    reminders.forEach(
-        ([id, reminder]) => {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-            item.className =
-                "reminder-item";
-
-
-            const medicineName =
-                reminder.medicineName
-                ?? "Unknown medicine";
-
-
-            const time =
-                reminder.time
-                ?? "--:--";
-
-
-            item.innerHTML = `
-
-                <div class="reminder-info">
-
-                    <strong>
-                        ${escapeHtml(medicineName)}
-                    </strong>
-
-                    <span>
-                        ⏰ ${escapeHtml(time)}
-                    </span>
-
-                </div>
-
-                <button
-                    class="delete-reminder"
-                    data-id="${id}">
-                    Delete
-                </button>
-            `;
-
-
-            reminderList.appendChild(
-                item
-            );
+        if (!reminderList) {
+            return;
         }
-    );
 
 
-    // Delete buttons
-    document
-        .querySelectorAll(
-            ".delete-reminder"
-        )
-        .forEach(
-            (button) => {
-
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        const id =
-                            button.dataset.id;
+        reminderList.innerHTML =
+            "";
 
 
-                        try {
+        const reminders =
+            snapshot.val();
 
-                            await remove(
-                                ref(
-                                    db,
-                                    "ElderCare/settings/medicationReminders/" +
-                                    id
-                                )
-                            );
 
-                        } catch (error) {
+        if (!reminders) {
 
-                            console.error(
-                                "Delete reminder error:",
-                                error
-                            );
-                        }
-                    }
+            reminderList.innerHTML =
+                "<p>No medication reminders.</p>";
+
+            return;
+        }
+
+
+        Object.entries(
+            reminders
+        ).forEach(
+            ([id, reminder]) => {
+
+                displayReminder(
+                    id,
+                    reminder
                 );
             }
         );
-}
+    },
 
+    (error) => {
 
-// ==========================================
-// ADD MEDICATION REMINDER
-// ==========================================
-
-addReminderBtn.addEventListener(
-    "click",
-    async () => {
-
-        const medicineName =
-            medicineNameInput.value.trim();
-
-
-        const medicineTime =
-            medicineTimeInput.value;
-
-
-        // Check medicine name
-        if (!medicineName) {
-
-            reminderMessage.textContent =
-                "Please enter the medicine name.";
-
-            reminderMessage.style.color =
-                "red";
-
-            return;
-        }
-
-
-        // Check time
-        if (!medicineTime) {
-
-            reminderMessage.textContent =
-                "Please select a reminder time.";
-
-            reminderMessage.style.color =
-                "red";
-
-            return;
-        }
-
-
-        try {
-
-            const newReminderRef =
-                push(remindersRef);
-
-
-            await set(
-                newReminderRef,
-                {
-                    medicineName:
-                        medicineName,
-
-                    time:
-                        medicineTime
-                }
-            );
-
-
-            // Clear input
-            medicineNameInput.value =
-                "";
-
-            medicineTimeInput.value =
-                "";
-
-
-            reminderMessage.textContent =
-                "Medication reminder added successfully.";
-
-            reminderMessage.style.color =
-                "green";
-
-
-        } catch (error) {
-
-            console.error(
-                "Add reminder error:",
-                error
-            );
-
-
-            reminderMessage.textContent =
-                "Failed to add medication reminder.";
-
-            reminderMessage.style.color =
-                "red";
-        }
+        console.error(
+            "Error loading reminders:",
+            error
+        );
     }
 );
 
 
-// ==========================================
-// HEALTH HISTORY
-// ==========================================
+// ==================================================
+// DISPLAY MEDICATION REMINDER
+// ==================================================
 
-const historyRef =
-    ref(
-        db,
-        "ElderCare/history"
-    );
+function displayReminder(
+    id,
+    reminder
+) {
 
-
-onValue(historyRef, (snapshot) => {
-
-    const data =
-        snapshot.val();
-
-
-    renderHistory(
-        data
-    );
-});
-
-
-// ==========================================
-// RENDER HISTORY
-// ==========================================
-
-function renderHistory(data)
-{
-    historyList.innerHTML = "";
-
-
-    if (!data) {
-
-        historyList.innerHTML =
-            '<p class="empty">No health history yet.</p>';
-
+    if (!reminderList) {
         return;
     }
 
 
-    const records =
-        Object.entries(data);
-
-
-    if (records.length === 0) {
-
-        historyList.innerHTML =
-            '<p class="empty">No health history yet.</p>';
-
-        return;
-    }
-
-
-    // Newest first
-    records.sort(
-        (a, b) => {
-
-            const timeA =
-                new Date(
-                    a[1].timestamp ?? 0
-                ).getTime();
-
-
-            const timeB =
-                new Date(
-                    b[1].timestamp ?? 0
-                ).getTime();
-
-
-            return timeB - timeA;
-        }
-    );
-
-
-    // Show latest 20
-    const latestRecords =
-        records.slice(
-            0,
-            20
+    const item =
+        document.createElement(
+            "div"
         );
 
 
-    latestRecords.forEach(
-        ([id, record]) => {
+    item.className =
+        "reminder-item";
 
-            const item =
-                document.createElement(
-                    "div"
+
+    // ------------------------------------------
+    // Medicine name
+    // ------------------------------------------
+
+    const name =
+        safeValue(
+            reminder.medicineName,
+            "Medicine"
+        );
+
+
+    // ------------------------------------------
+    // Medicine time
+    // ------------------------------------------
+
+    const time =
+        safeValue(
+            reminder.time,
+            "--:--"
+        );
+
+
+    // ------------------------------------------
+    // Enabled
+    // ------------------------------------------
+
+    const enabled =
+        reminder.enabled === true;
+
+
+    // ------------------------------------------
+    // Information
+    // ------------------------------------------
+
+    const info =
+        document.createElement(
+            "div"
+        );
+
+
+    info.className =
+        "reminder-info";
+
+
+    const nameElement =
+        document.createElement(
+            "strong"
+        );
+
+
+    nameElement.textContent =
+        name;
+
+
+    const timeElement =
+        document.createElement(
+            "span"
+        );
+
+
+    timeElement.textContent =
+        "Time: " + time;
+
+
+    const statusElement =
+        document.createElement(
+            "span"
+        );
+
+
+    if (enabled) {
+
+        statusElement.textContent =
+            "Enabled";
+
+        statusElement.style.color =
+            "green";
+
+    } else {
+
+        statusElement.textContent =
+            "Disabled";
+
+        statusElement.style.color =
+            "red";
+    }
+
+
+    info.appendChild(
+        nameElement
+    );
+
+    info.appendChild(
+        timeElement
+    );
+
+    info.appendChild(
+        statusElement
+    );
+
+
+    // ------------------------------------------
+    // Delete button
+    // ------------------------------------------
+
+    const deleteBtn =
+        document.createElement(
+            "button"
+        );
+
+
+    deleteBtn.textContent =
+        "Delete";
+
+
+    deleteBtn.className =
+        "delete-reminder";
+
+
+    deleteBtn.addEventListener(
+        "click",
+        async () => {
+
+            const confirmDelete =
+                confirm(
+                    "Delete this medication reminder?"
                 );
 
 
-            item.className =
-                "history-item";
+            if (!confirmDelete) {
+                return;
+            }
 
 
-            item.innerHTML = `
+            try {
 
-                <div class="history-time">
-                    🕐
-                    ${escapeHtml(
-                        record.timestamp ?? "--"
-                    )}
-                </div>
-
-                <div class="history-data">
-
-                    <span>
-                        ❤️ HR:
-                        <strong>
-                            ${escapeHtml(
-                                String(
-                                    record.heartRate ?? "--"
-                                )
-                            )}
-                            BPM
-                        </strong>
-                    </span>
-
-                    <span>
-                        🫁 SpO₂:
-                        <strong>
-                            ${escapeHtml(
-                                String(
-                                    record.spo2 ?? "--"
-                                )
-                            )}
-                            %
-                        </strong>
-                    </span>
-
-                    <span>
-                        🚨 Fall:
-                        <strong>
-                            ${escapeHtml(
-                                record.fallStatus ?? "--"
-                            )}
-                        </strong>
-                    </span>
-
-                    <span>
-                        👆 Finger:
-                        <strong>
-                            ${escapeHtml(
-                                record.fingerStatus ?? "--"
-                            )}
-                        </strong>
-                    </span>
-
-                    <span>
-                        🔧 MPU6050:
-                        <strong>
-                            ${escapeHtml(
-                                record.mpuStatus ?? "--"
-                            )}
-                        </strong>
-                    </span>
-
-                </div>
-            `;
+                const reminderRef =
+                    ref(
+                        db,
+                        "ElderCare/settings/medicationReminders/" +
+                        id
+                    );
 
 
-            historyList.appendChild(
-                item
+                await remove(
+                    reminderRef
+                );
+
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Reminder deleted successfully.";
+
+                    reminderMessage.style.color =
+                        "green";
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "Delete reminder error:",
+                    error
+                );
+
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Failed to delete reminder.";
+
+                    reminderMessage.style.color =
+                        "red";
+                }
+            }
+        }
+    );
+
+
+    // ------------------------------------------
+    // Add elements
+    // ------------------------------------------
+
+    item.appendChild(
+        info
+    );
+
+    item.appendChild(
+        deleteBtn
+    );
+
+
+    reminderList.appendChild(
+        item
+    );
+}
+
+
+// ==================================================
+// ADD MEDICATION REMINDER
+// ==================================================
+
+if (addReminderBtn) {
+
+    addReminderBtn.addEventListener(
+        "click",
+        async () => {
+
+            const name =
+                medicineName.value.trim();
+
+
+            const time =
+                medicineTime.value;
+
+
+            // --------------------------------------
+            // Check medicine name
+            // --------------------------------------
+
+            if (!name) {
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Please enter the medicine name.";
+
+                    reminderMessage.style.color =
+                        "red";
+                }
+
+                return;
+            }
+
+
+            // --------------------------------------
+            // Check time
+            // --------------------------------------
+
+            if (!time) {
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Please select a reminder time.";
+
+                    reminderMessage.style.color =
+                        "red";
+                }
+
+                return;
+            }
+
+
+            try {
+
+                const newReminderRef =
+                    push(
+                        remindersRef
+                    );
+
+
+                // ==================================================
+                // IMPORTANT
+                // ESP32 REQUIRES enabled = true
+                // ==================================================
+
+                await set(
+                    newReminderRef,
+                    {
+                        medicineName: name,
+                        time: time,
+                        enabled: true
+                    }
+                );
+
+
+                console.log(
+                    "Medication reminder saved:",
+                    {
+                        medicineName: name,
+                        time: time,
+                        enabled: true
+                    }
+                );
+
+
+                // Clear input
+                medicineName.value =
+                    "";
+
+                medicineTime.value =
+                    "";
+
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Medication reminder added successfully.";
+
+                    reminderMessage.style.color =
+                        "green";
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "Add reminder error:",
+                    error
+                );
+
+
+                if (reminderMessage) {
+
+                    reminderMessage.textContent =
+                        "Failed to add medication reminder.";
+
+                    reminderMessage.style.color =
+                        "red";
+                }
+            }
+        }
+    );
+}
+
+
+// ==================================================
+// HISTORY
+// ==================================================
+
+async function loadHistory() {
+
+    try {
+
+        const snapshot =
+            await get(
+                historyRef
+            );
+
+
+        if (!historyList) {
+            return;
+        }
+
+
+        historyList.innerHTML =
+            "";
+
+
+        if (!snapshot.exists()) {
+
+            historyList.innerHTML =
+                "<p>No history available.</p>";
+
+            return;
+        }
+
+
+        const history =
+            snapshot.val();
+
+
+        let entries =
+            Object.entries(
+                history
+            );
+
+
+        // Newest first
+        entries.reverse();
+
+
+        // Show maximum 20 records
+        entries =
+            entries.slice(
+                0,
+                20
+            );
+
+
+        entries.forEach(
+            ([id, record]) => {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                item.className =
+                    "history-item";
+
+
+                const timestamp =
+                    safeValue(
+                        record.timestamp,
+                        "--"
+                    );
+
+
+                const hr =
+                    safeValue(
+                        record.heartRate,
+                        "--"
+                    );
+
+
+                const oxygen =
+                    safeValue(
+                        record.spo2,
+                        "--"
+                    );
+
+
+                const fall =
+                    safeValue(
+                        record.fallStatus,
+                        "NORMAL"
+                    );
+
+
+                item.innerHTML = `
+                    <div>
+                        <strong>${timestamp}</strong>
+                    </div>
+
+                    <div>
+                        Heart Rate:
+                        ${hr} BPM
+                    </div>
+
+                    <div>
+                        SpO₂:
+                        ${oxygen} %
+                    </div>
+
+                    <div>
+                        Fall:
+                        ${fall}
+                    </div>
+                `;
+
+
+                historyList.appendChild(
+                    item
+                );
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Error loading history:",
+            error
+        );
+
+
+        if (historyList) {
+
+            historyList.innerHTML =
+                "<p>Failed to load history.</p>";
+        }
+    }
+}
+
+
+// ==================================================
+// REFRESH HISTORY
+// ==================================================
+
+if (refreshBtn) {
+
+    refreshBtn.addEventListener(
+        "click",
+        async () => {
+
+            refreshBtn.textContent =
+                "Refreshing...";
+
+
+            await loadHistory();
+
+
+            refreshBtn.textContent =
+                "Refresh";
+
+
+            setTimeout(
+                () => {
+
+                    refreshBtn.textContent =
+                        "Refresh";
+
+                },
+                1000
             );
         }
     );
 }
 
 
-// ==========================================
-// REFRESH BUTTON
-// ==========================================
+// ==================================================
+// INITIAL LOAD
+// ==================================================
 
-refreshBtn.addEventListener(
-    "click",
-    () => {
-
-        refreshBtn.textContent =
-            "✓ Updated";
-
-        setTimeout(
-            () => {
-
-                refreshBtn.textContent =
-                    "↻ Refresh";
-
-            },
-            1000
-        );
-    }
-);
+loadHistory();
 
 
-// ==========================================
-// HTML ESCAPE
-// ==========================================
-
-function escapeHtml(value)
-{
-    return String(value)
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-}
-
-
-// ==========================================
-// START MESSAGE
-// ==========================================
+// ==================================================
+// Console
+// ==================================================
 
 console.log(
-    "ElderCare Web App started."
+    "================================="
 );
 
 console.log(
-    "Firebase Project: eldercare-de234"
+    "ElderCare Web App"
+);
+
+console.log(
+    "Firebase initialized"
+);
+
+console.log(
+    "Database:",
+    firebaseConfig.databaseURL
+);
+
+console.log(
+    "================================="
 );
