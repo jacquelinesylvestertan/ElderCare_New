@@ -1,4 +1,4 @@
-const CACHE_NAME = "eldercare-v2";
+const CACHE_NAME = "eldercare-v3";
 
 const FILES_TO_CACHE = [
   "./",
@@ -6,7 +6,7 @@ const FILES_TO_CACHE = [
   "./style.css",
   "./app.js",
   "./manifest.json",
-  "./ElderCare.jpng"
+  "./ElderCare.png"
 ];
 
 
@@ -73,7 +73,7 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
 
-  // Firebase requests jangan cache
+  // Jangan cache Firebase requests
   if (
     event.request.url.includes("firebaseio.com") ||
     event.request.url.includes("googleapis.com") ||
