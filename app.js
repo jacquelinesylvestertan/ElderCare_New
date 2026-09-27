@@ -1,404 +1,890 @@
-// ================================
-// ElderCare Web App - app.js
-// ================================
 
-// Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+// ==========================================
+// ELDERCARE WEB APP
+// Firebase Realtime Database
+// ==========================================
+
+import {
+    initializeApp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
 import {
     getDatabase,
     ref,
+    set,
+    push,
+    remove,
     onValue
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
-import {
-    getAuth,
-    signInAnonymously,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
-
-// ================================
-// Firebase Configuration
-// ================================
+// ==========================================
+// FIREBASE CONFIGURATION
+// ==========================================
 
 const firebaseConfig = {
-    apiKey: "AIzaSyD3PyawBl2BszqzvEugHqy0tYg6iXhnzA",
 
-    authDomain: "eldercare-e783b.firebaseapp.com",
+    apiKey: "AIzaSyApIoRhGU714Fv4GLC4remucT-StXMXWjE",
+
+    authDomain:
+        "eldercare-de234.firebaseapp.com",
 
     databaseURL:
-        "https://eldercare-e783b-default-rtdb.asia-southeast1.firebasedatabase.app",
+        "https://eldercare-de234-default-rtdb.asia-southeast1.firebasedatabase.app",
 
-    projectId: "eldercare-e783b",
+    projectId:
+        "eldercare-de234",
 
     storageBucket:
-        "eldercare-e783b.firebasestorage.app",
+        "eldercare-de234.firebasestorage.app",
 
     messagingSenderId:
-        "380812951098",
+        "162372032696",
 
     appId:
-        "1:380812951098:web:a6e2f198023c3bfac87f03"
+        "1:162372032696:web:6540a4ef34626542d37c4d",
+
+    measurementId:
+        "G-MSDHSNF15W"
 };
 
 
-// ================================
-// Initialize Firebase
-// ================================
+// ==========================================
+// INITIALIZE FIREBASE
+// ==========================================
 
 const app = initializeApp(firebaseConfig);
 
 const db = getDatabase(app);
 
-const auth = getAuth(app);
 
-
-// ================================
-// HTML Elements
-// ================================
+// ==========================================
+// HTML ELEMENTS
+// ==========================================
 
 // Connection
-const connectionStatusEl =
-    document.getElementById("connectionStatus");
-
-const connectionDotEl =
+const connectionDot =
     document.getElementById("connectionDot");
 
-
-// Fall Detection
-const fallStatusEl =
-    document.getElementById("fallStatus");
-
-const fallCard =
-    document.getElementById("fallCard");
+const connectionText =
+    document.getElementById("connectionText");
 
 
-// Heart Rate
+// Current Health
 const heartRateEl =
     document.getElementById("heartRate");
 
-
-// SpO2
 const spo2El =
     document.getElementById("spo2");
 
 
-// Finger
+// Fall
+const fallCard =
+    document.getElementById("fallCard");
+
+const fallStatusEl =
+    document.getElementById("fallStatus");
+
+
+// Updated
+const lastUpdatedEl =
+    document.getElementById("lastUpdated");
+
+
+// Device Status
+const wifiStatusEl =
+    document.getElementById("wifiStatus");
+
+const mpuStatusEl =
+    document.getElementById("mpuStatus");
+
+const max30102StatusEl =
+    document.getElementById("max30102Status");
+
 const fingerStatusEl =
     document.getElementById("fingerStatus");
 
 
-// MPU6050
-const mpuStatusEl =
-    document.getElementById("mpuStatus");
+// History
+const historyList =
+    document.getElementById("historyList");
+
+const refreshBtn =
+    document.getElementById("refreshBtn");
 
 
-// MAX30102
-const max30102StatusEl =
-    document.getElementById("max30102Status");
+// Caretaker
+const caretakerPhoneInput =
+    document.getElementById("caretakerPhone");
+
+const saveCaretakerBtn =
+    document.getElementById("saveCaretakerBtn");
+
+const caretakerMessage =
+    document.getElementById("caretakerMessage");
 
 
-// WiFi
-const wifiStatusEl =
-    document.getElementById("wifiStatus");
+// Medication
+const medicineNameInput =
+    document.getElementById("medicineName");
 
-const wifiSsidEl =
-    document.getElementById("wifiSSID");
+const medicineTimeInput =
+    document.getElementById("medicineTime");
+
+const addReminderBtn =
+    document.getElementById("addReminderBtn");
+
+const reminderMessage =
+    document.getElementById("reminderMessage");
+
+const reminderList =
+    document.getElementById("reminderList");
 
 
-// Timestamp
-const timestampEl =
-    document.getElementById("timestamp");
+// ==========================================
+// FIREBASE CONNECTION STATUS
+// ==========================================
+
+const connectionRef =
+    ref(db, ".info/connected");
 
 
-// ================================
-// Connection Status
-// ================================
+onValue(connectionRef, (snapshot) => {
 
-function setConnection(connected) {
+    const connected = snapshot.val() === true;
 
-    if (!connectionStatusEl) return;
 
     if (connected) {
 
-        connectionStatusEl.textContent =
-            "Connected";
+        connectionDot.classList.remove("offline");
+        connectionDot.classList.add("connected");
 
-        if (connectionDotEl) {
-            connectionDotEl.classList.add("connected");
-            connectionDotEl.classList.remove("disconnected");
-        }
+        connectionText.textContent =
+            "Connected";
 
     } else {
 
-        connectionStatusEl.textContent =
+        connectionDot.classList.remove("connected");
+        connectionDot.classList.add("offline");
+
+        connectionText.textContent =
             "Disconnected";
-
-        if (connectionDotEl) {
-            connectionDotEl.classList.add("disconnected");
-            connectionDotEl.classList.remove("connected");
-        }
     }
-}
+});
 
 
-// ================================
-// Update Fall Status
-// ================================
+// ==========================================
+// CURRENT HEALTH DATA
+// ==========================================
 
-function updateFallStatus(data) {
-
-    if (!fallStatusEl || !fallCard) return;
-
-
-    // IMPORTANT:
-    // Only use fallStatus.
-    // Do NOT use eventType here.
-
-    const fall =
-        data.fallStatus ?? "Unknown";
+const currentRef =
+    ref(db, "ElderCare/current");
 
 
-    fallStatusEl.textContent = fall;
+onValue(currentRef, (snapshot) => {
+
+    const data = snapshot.val();
 
 
-    // Remove old classes
+    if (!data) {
 
-    fallCard.classList.remove(
-        "fall-normal",
-        "fall-alert"
-    );
+        heartRateEl.textContent = "--";
+        spo2El.textContent = "--";
+        fallStatusEl.textContent = "--";
+        lastUpdatedEl.textContent = "--";
 
-    fallStatusEl.classList.remove(
-        "normal",
-        "alert"
-    );
+        wifiStatusEl.textContent = "--";
+        mpuStatusEl.textContent = "--";
+        max30102StatusEl.textContent = "--";
+        fingerStatusEl.textContent = "--";
+
+        return;
+    }
 
 
-    // ================================
-    // Fall Detected
-    // ================================
+    // ======================================
+    // HEART RATE
+    // ======================================
 
-    if (fall === "FALL DETECTED") {
+    heartRateEl.textContent =
+        data.heartRate ?? "--";
+
+
+    // ======================================
+    // SPO2
+    // ======================================
+
+    spo2El.textContent =
+        data.spo2 ?? "--";
+
+
+    // ======================================
+    // FALL STATUS
+    // ======================================
+
+    const fallStatus =
+        data.fallStatus ?? "Normal";
+
+
+    fallStatusEl.textContent =
+        fallStatus;
+
+
+    if (
+        fallStatus === "FALL DETECTED"
+    ) {
+
+        fallCard.classList.remove(
+            "fall-normal"
+        );
 
         fallCard.classList.add(
-            "fall-alert"
+            "fall-danger"
+        );
+
+        fallStatusEl.classList.remove(
+            "normal"
         );
 
         fallStatusEl.classList.add(
-            "alert"
+            "danger"
         );
 
-    }
+    } else {
 
-    // ================================
-    // Normal
-    // ================================
-
-    else {
+        fallCard.classList.remove(
+            "fall-danger"
+        );
 
         fallCard.classList.add(
             "fall-normal"
+        );
+
+        fallStatusEl.classList.remove(
+            "danger"
         );
 
         fallStatusEl.classList.add(
             "normal"
         );
     }
-}
 
 
-// ================================
-// Show Current Firebase Data
-// ================================
+    // ======================================
+    // LAST UPDATED
+    // ======================================
 
-function showCurrentData(data) {
+    lastUpdatedEl.textContent =
+        data.timestamp ?? "--";
 
-    if (!data) {
-        console.log(
-            "[Firebase] No current data."
-        );
-        return;
+
+    // ======================================
+    // WIFI STATUS
+    // ======================================
+
+    wifiStatusEl.textContent =
+        data.wifiStatus ?? "--";
+
+
+    // ======================================
+    // MPU6050
+    // ======================================
+
+    mpuStatusEl.textContent =
+        data.mpuStatus ?? "--";
+
+
+    // ======================================
+    // MAX30102
+    // ======================================
+
+    max30102StatusEl.textContent =
+        data.max30102Status ?? "--";
+
+
+    // ======================================
+    // FINGER
+    // ======================================
+
+    fingerStatusEl.textContent =
+        data.fingerStatus ?? "--";
+
+});
+
+
+// ==========================================
+// LOAD CARETAKER NUMBER
+// ==========================================
+
+const caretakerRef =
+    ref(db, "ElderCare/settings/caretakerPhone");
+
+
+onValue(caretakerRef, (snapshot) => {
+
+    const phone =
+        snapshot.val();
+
+
+    if (phone) {
+
+        caretakerPhoneInput.value =
+            phone;
     }
+});
 
 
-    console.log(
-        "[Firebase] Current data:",
-        data
-    );
+// ==========================================
+// SAVE CARETAKER PHONE
+// ==========================================
+
+saveCaretakerBtn.addEventListener(
+    "click",
+    async () => {
+
+        let phone =
+            caretakerPhoneInput.value.trim();
 
 
-    // ================================
-    // Fall
-    // ================================
+        // Empty
+        if (!phone) {
 
-    updateFallStatus(data);
+            caretakerMessage.textContent =
+                "Please enter a WhatsApp number.";
 
+            caretakerMessage.style.color =
+                "red";
 
-    // ================================
-    // Heart Rate
-    // ================================
-
-    if (heartRateEl) {
-
-        heartRateEl.textContent =
-            data.heartRate ?? "--";
-    }
+            return;
+        }
 
 
-    // ================================
-    // SpO2
-    // ================================
-
-    if (spo2El) {
-
-        spo2El.textContent =
-            data.spo2 ?? "--";
-    }
-
-
-    // ================================
-    // Finger Status
-    // ================================
-
-    if (fingerStatusEl) {
-
-        fingerStatusEl.textContent =
-            data.fingerStatus ?? "--";
-    }
-
-
-    // ================================
-    // MPU6050 Status
-    // ================================
-
-    if (mpuStatusEl) {
-
-        mpuStatusEl.textContent =
-            data.mpuStatus ?? "--";
-    }
-
-
-    // ================================
-    // MAX30102 Status
-    // ================================
-
-    if (max30102StatusEl) {
-
-        max30102StatusEl.textContent =
-            data.max30102Status ?? "--";
-    }
-
-
-    // ================================
-    // WiFi Status
-    // ================================
-
-    if (wifiStatusEl) {
-
-        wifiStatusEl.textContent =
-            data.wifiStatus ?? "--";
-    }
-
-
-    // ================================
-    // WiFi SSID
-    // ================================
-
-    if (wifiSsidEl) {
-
-        wifiSsidEl.textContent =
-            data.wifiSSID ?? "--";
-    }
-
-
-    // ================================
-    // Timestamp
-    // ================================
-
-    if (timestampEl) {
-
-        timestampEl.textContent =
-            data.timestamp ?? "--";
-    }
-}
-
-
-// ================================
-// Anonymous Login
-// ================================
-
-signInAnonymously(auth)
-    .then(() => {
-
-        console.log(
-            "[Firebase] Anonymous login successful."
-        );
-
-    })
-    .catch((error) => {
-
-        console.error(
-            "[Firebase] Anonymous login failed:",
-            error
-        );
-    });
-
-
-// ================================
-// Authentication State
-// ================================
-
-onAuthStateChanged(
-    auth,
-    (user) => {
-
-        if (user) {
-
-            console.log(
-                "[Firebase] User authenticated:",
-                user.uid
+        // Remove + spaces - brackets
+        phone =
+            phone.replace(
+                /[^0-9]/g,
+                ""
             );
 
-        } else {
 
-            console.log(
-                "[Firebase] User not authenticated."
+        // Validate
+        if (
+            !/^[0-9]{8,15}$/.test(phone)
+        ) {
+
+            caretakerMessage.textContent =
+                "Please enter a valid phone number.";
+
+            caretakerMessage.style.color =
+                "red";
+
+            return;
+        }
+
+
+        try {
+
+            await set(
+                caretakerRef,
+                phone
             );
+
+
+            caretakerMessage.textContent =
+                "Caretaker number saved successfully.";
+
+            caretakerMessage.style.color =
+                "green";
+
+
+        } catch (error) {
+
+            console.error(
+                "Save caretaker error:",
+                error
+            );
+
+
+            caretakerMessage.textContent =
+                "Failed to save caretaker number.";
+
+            caretakerMessage.style.color =
+                "red";
         }
     }
 );
 
 
-// ================================
-// Listen to Current Data
-// ================================
+// ==========================================
+// LOAD MEDICATION REMINDERS
+// ==========================================
 
-const currentRef =
-    ref(db, "ElderCare/current");
+const remindersRef =
+    ref(
+        db,
+        "ElderCare/settings/medicationReminders"
+    );
 
 
-onValue(
-    currentRef,
+onValue(remindersRef, (snapshot) => {
 
-    (snapshot) => {
+    const data =
+        snapshot.val();
 
-        setConnection(true);
 
-        const data =
-            snapshot.val();
+    renderReminders(
+        data
+    );
+});
 
-        showCurrentData(data);
-    },
 
-    (error) => {
+// ==========================================
+// RENDER MEDICATION REMINDERS
+// ==========================================
 
-        console.error(
-            "[Firebase] Database error:",
-            error
+function renderReminders(data)
+{
+    reminderList.innerHTML = "";
+
+
+    if (!data) {
+
+        reminderList.innerHTML =
+            '<p class="empty">No medication reminders yet.</p>';
+
+        return;
+    }
+
+
+    const reminders =
+        Object.entries(data);
+
+
+    if (reminders.length === 0) {
+
+        reminderList.innerHTML =
+            '<p class="empty">No medication reminders yet.</p>';
+
+        return;
+    }
+
+
+    reminders.forEach(
+        ([id, reminder]) => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                "reminder-item";
+
+
+            const medicineName =
+                reminder.medicineName
+                ?? "Unknown medicine";
+
+
+            const time =
+                reminder.time
+                ?? "--:--";
+
+
+            item.innerHTML = `
+
+                <div class="reminder-info">
+
+                    <strong>
+                        ${escapeHtml(medicineName)}
+                    </strong>
+
+                    <span>
+                        ⏰ ${escapeHtml(time)}
+                    </span>
+
+                </div>
+
+                <button
+                    class="delete-reminder"
+                    data-id="${id}">
+                    Delete
+                </button>
+            `;
+
+
+            reminderList.appendChild(
+                item
+            );
+        }
+    );
+
+
+    // Delete buttons
+    document
+        .querySelectorAll(
+            ".delete-reminder"
+        )
+        .forEach(
+            (button) => {
+
+                button.addEventListener(
+                    "click",
+                    async () => {
+
+                        const id =
+                            button.dataset.id;
+
+
+                        try {
+
+                            await remove(
+                                ref(
+                                    db,
+                                    "ElderCare/settings/medicationReminders/" +
+                                    id
+                                )
+                            );
+
+                        } catch (error) {
+
+                            console.error(
+                                "Delete reminder error:",
+                                error
+                            );
+                        }
+                    }
+                );
+            }
+        );
+}
+
+
+// ==========================================
+// ADD MEDICATION REMINDER
+// ==========================================
+
+addReminderBtn.addEventListener(
+    "click",
+    async () => {
+
+        const medicineName =
+            medicineNameInput.value.trim();
+
+
+        const medicineTime =
+            medicineTimeInput.value;
+
+
+        // Check medicine name
+        if (!medicineName) {
+
+            reminderMessage.textContent =
+                "Please enter the medicine name.";
+
+            reminderMessage.style.color =
+                "red";
+
+            return;
+        }
+
+
+        // Check time
+        if (!medicineTime) {
+
+            reminderMessage.textContent =
+                "Please select a reminder time.";
+
+            reminderMessage.style.color =
+                "red";
+
+            return;
+        }
+
+
+        try {
+
+            const newReminderRef =
+                push(remindersRef);
+
+
+            await set(
+                newReminderRef,
+                {
+                    medicineName:
+                        medicineName,
+
+                    time:
+                        medicineTime
+                }
+            );
+
+
+            // Clear input
+            medicineNameInput.value =
+                "";
+
+            medicineTimeInput.value =
+                "";
+
+
+            reminderMessage.textContent =
+                "Medication reminder added successfully.";
+
+            reminderMessage.style.color =
+                "green";
+
+
+        } catch (error) {
+
+            console.error(
+                "Add reminder error:",
+                error
+            );
+
+
+            reminderMessage.textContent =
+                "Failed to add medication reminder.";
+
+            reminderMessage.style.color =
+                "red";
+        }
+    }
+);
+
+
+// ==========================================
+// HEALTH HISTORY
+// ==========================================
+
+const historyRef =
+    ref(
+        db,
+        "ElderCare/history"
+    );
+
+
+onValue(historyRef, (snapshot) => {
+
+    const data =
+        snapshot.val();
+
+
+    renderHistory(
+        data
+    );
+});
+
+
+// ==========================================
+// RENDER HISTORY
+// ==========================================
+
+function renderHistory(data)
+{
+    historyList.innerHTML = "";
+
+
+    if (!data) {
+
+        historyList.innerHTML =
+            '<p class="empty">No health history yet.</p>';
+
+        return;
+    }
+
+
+    const records =
+        Object.entries(data);
+
+
+    if (records.length === 0) {
+
+        historyList.innerHTML =
+            '<p class="empty">No health history yet.</p>';
+
+        return;
+    }
+
+
+    // Newest first
+    records.sort(
+        (a, b) => {
+
+            const timeA =
+                new Date(
+                    a[1].timestamp ?? 0
+                ).getTime();
+
+
+            const timeB =
+                new Date(
+                    b[1].timestamp ?? 0
+                ).getTime();
+
+
+            return timeB - timeA;
+        }
+    );
+
+
+    // Show latest 20
+    const latestRecords =
+        records.slice(
+            0,
+            20
         );
 
-        setConnection(false);
+
+    latestRecords.forEach(
+        ([id, record]) => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+
+            item.className =
+                "history-item";
+
+
+            item.innerHTML = `
+
+                <div class="history-time">
+                    🕐
+                    ${escapeHtml(
+                        record.timestamp ?? "--"
+                    )}
+                </div>
+
+                <div class="history-data">
+
+                    <span>
+                        ❤️ HR:
+                        <strong>
+                            ${escapeHtml(
+                                String(
+                                    record.heartRate ?? "--"
+                                )
+                            )}
+                            BPM
+                        </strong>
+                    </span>
+
+                    <span>
+                        🫁 SpO₂:
+                        <strong>
+                            ${escapeHtml(
+                                String(
+                                    record.spo2 ?? "--"
+                                )
+                            )}
+                            %
+                        </strong>
+                    </span>
+
+                    <span>
+                        🚨 Fall:
+                        <strong>
+                            ${escapeHtml(
+                                record.fallStatus ?? "--"
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        👆 Finger:
+                        <strong>
+                            ${escapeHtml(
+                                record.fingerStatus ?? "--"
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        🔧 MPU6050:
+                        <strong>
+                            ${escapeHtml(
+                                record.mpuStatus ?? "--"
+                            )}
+                        </strong>
+                    </span>
+
+                </div>
+            `;
+
+
+            historyList.appendChild(
+                item
+            );
+        }
+    );
+}
+
+
+// ==========================================
+// REFRESH BUTTON
+// ==========================================
+
+refreshBtn.addEventListener(
+    "click",
+    () => {
+
+        refreshBtn.textContent =
+            "✓ Updated";
+
+        setTimeout(
+            () => {
+
+                refreshBtn.textContent =
+                    "↻ Refresh";
+
+            },
+            1000
+        );
     }
+);
+
+
+// ==========================================
+// HTML ESCAPE
+// ==========================================
+
+function escapeHtml(value)
+{
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+
+// ==========================================
+// START MESSAGE
+// ==========================================
+
+console.log(
+    "ElderCare Web App started."
+);
+
+console.log(
+    "Firebase Project: eldercare-de234"
 );
