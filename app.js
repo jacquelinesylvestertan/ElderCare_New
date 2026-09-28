@@ -29,6 +29,16 @@ const firebaseConfig = {
     measurementId: "G-MSDHSNF15W"
 };
 
+// ================================
+// Pushover Configuration
+// ================================
+
+const pushoverToken =
+    "ap2ikydru3uipbg45mxt8bpcm5q7hw";
+
+const pushoverUser =
+    "uvh1sa841kaxp1qimyohavgid1ocie";
+
 
 // ================================
 // Initialize Firebase
@@ -43,6 +53,16 @@ const db = getDatabase(app);
 const currentRef = ref(db, "ElderCare/current");
 const historyRef = ref(db, "ElderCare/history");
 
+// ================================
+// Pushover Fall Notification
+// ================================
+
+let pushoverFallSent = false;
+let pushoverFallSending = false;
+let pushoverRetryCount = 0;
+const maxPushoverRetries = 3;
+const pushoverRetryDelay = 5000;
+let lastFallNotificationStatus = "";
 
 // ================================
 // DOM Elements
@@ -139,6 +159,198 @@ function safeValue(value, defaultValue = "--") {
     return value;
 }
 
+// ==================================================
+// PUSHOVER NOTIFICATION
+// ==================================================
+
+async function sendPushover(
+    title,
+    message
+) {
+
+    const url =
+        "https://api.pushover.net/1/messages.json";
+
+
+    const formData =
+        new URLSearchParams();
+
+
+    formData.append(
+        "token",
+        pushoverToken
+    );
+
+    formData.append(
+        "user",
+        pushoverUser
+    );
+
+    formData.append(
+        "title",
+        title
+    );
+
+    formData.append(
+        "message",
+        message
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                url,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/x-www-form-urlencoded"
+                    },
+
+                    body:
+                        formData.toString()
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        console.log(
+            "Pushover Response:",
+            result
+        );
+
+
+        if (
+            result.status === 1
+        ) {
+
+            console.log(
+                "Pushover notification sent successfully."
+            );
+
+            return true;
+
+        } else {
+
+            console.error(
+                "Pushover notification failed:",
+                result
+            );
+
+            return false;
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "Pushover error:",
+            error
+        );
+
+        return false;
+    }
+}
+
+// ==================================================
+// PUSHOVER FALL NOTIFICATION WITH RETRY
+// ==================================================
+
+async function sendFallPushoverWithRetry() {
+
+    if (pushoverFallSent) {
+        return;
+    }
+
+
+    if (
+        pushoverRetryCount >=
+        maxPushoverRetries
+    ) {
+
+        console.error(
+            "❌ Pushover: Maximum retry attempts reached."
+        );
+
+        pushoverFallSending = false;
+
+        return;
+    }
+
+
+    pushoverRetryCount++;
+
+
+    console.log(
+        "Pushover attempt " +
+        pushoverRetryCount +
+        "/" +
+        maxPushoverRetries
+    );
+
+
+    const success =
+        await sendPushover(
+            "🚨 ElderCare Fall Alert",
+            "FALL DETECTED! Please check the elderly person immediately."
+        );
+
+
+    if (success) {
+
+        pushoverFallSent = true;
+
+        pushoverFallSending = false;
+
+        console.log(
+            "✅ Pushover notification sent successfully."
+        );
+
+        return;
+    }
+
+
+    console.error(
+        "❌ Pushover attempt " +
+        pushoverRetryCount +
+        " failed."
+    );
+
+
+    if (
+        pushoverRetryCount <
+        maxPushoverRetries
+    ) {
+
+        console.log(
+            "Retrying Pushover in 5 seconds..."
+        );
+
+
+        setTimeout(
+            () => {
+
+                sendFallPushoverWithRetry();
+
+            },
+            pushoverRetryDelay
+        );
+
+    } else {
+
+        console.error(
+            "❌ Pushover failed after maximum attempts."
+        );
+
+        pushoverFallSending = false;
+    }
+}
 
 // ==================================================
 // FIREBASE CONNECTION STATUS
@@ -336,25 +548,64 @@ onValue(
                 status;
 
 
-            if (
-                status === "FALL DETECTED"
-            ) {
+            // if (
+            //     status === "FALL DETECTED"
+            // ) {
+
+            //     if (fallCard) {
+
+            //         fallCard.classList.add(
+            //             "danger"
+            //         );
+            //     }
+
+            // } else {
+
+            //     if (fallCard) {
+
+            //         fallCard.classList.remove(
+            //             "danger"
+            //         );
+            //     }
+            // }
+            // ==========================================
+            // PUSHOVER FALL NOTIFICATION
+            // ==========================================
+
+            iif(status === "FALL DETECTED") {
 
                 if (fallCard) {
-
-                    fallCard.classList.add(
-                        "danger"
-                    );
+                    fallCard.classList.add("danger");
                 }
+
+                // Only send when status changes INTO FALL DETECTED
+                if (lastFallNotificationStatus !== "FALL DETECTED") {
+
+                    console.log(
+                        "🚨 New FALL DETECTED. Starting Pushover notification..."
+                    );
+
+                    pushoverFallSent = false;
+                    pushoverFallSending = true;
+                    pushoverRetryCount = 0;
+
+                    sendFallPushoverWithRetry();
+                }
+
+                lastFallNotificationStatus = "FALL DETECTED";
 
             } else {
 
                 if (fallCard) {
-
-                    fallCard.classList.remove(
-                        "danger"
-                    );
+                    fallCard.classList.remove("danger");
                 }
+
+                // Reset when fall status returns to normal
+                lastFallNotificationStatus = status;
+
+                pushoverFallSent = false;
+                pushoverFallSending = false;
+                pushoverRetryCount = 0;
             }
         }
 
@@ -1191,6 +1442,15 @@ if (refreshBtn) {
 // ==================================================
 
 loadHistory();
+
+// ==================================================
+// PUSHOVER TEST
+// ==================================================
+
+// sendPushover(
+//     "ElderCare Test",
+//     "Hei, saya jatuh, tolong"
+// );
 
 
 // ==================================================
